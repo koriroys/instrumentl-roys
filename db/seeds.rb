@@ -29,6 +29,8 @@ files.each do |file|
     name: org_node.css("Name").text.strip.gsub(/\n */, " ").presence || org_node.css("BusinessName").text.strip.gsub(/\n */, " ").presence || org_node.css("BusinessNameLine1Txt").text.strip.gsub(/\n */, " ")
   )
 
+  filing = Filing.create(organization: org)
+
   org.addresses |= [Address.find_or_create_by(
     line_1: org_node.css("USAddress AddressLine1").text,
     city: org_node.css("USAddress City").text,
@@ -49,10 +51,13 @@ files.each do |file|
       zip: award_info.css("AddressUS ZIPCode").text.presence|| award_info.css("USAddress ZIPCode").text.presence || award_info.css("USAddress ZIPCd").text
     )]
 
-    organization.awards |= [Award.create(
+    award = Award.create(
       amount: award_info.css("AmountOfCashGrant").text.presence || award_info.css("CashGrantAmt").text,
-      purpose: award_info.css("PurposeOfGrant").text.presence || award_info.css("PurposeOfGrantTxt").text
-    )]
+      purpose: award_info.css("PurposeOfGrant").text.presence || award_info.css("PurposeOfGrantTxt").text,
+      recipient: organization
+    )
+
+    filing.awards |= [award]
   end
 end
 
