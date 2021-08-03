@@ -1,3 +1,4 @@
 class Address < ApplicationRecord
-  belongs_to :organization
+  has_many :organization_addresses
+  has_many :organizations, through: :organization_addresses
 end

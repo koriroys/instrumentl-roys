@@ -24,25 +24,35 @@ files.each do |file|
   f = Nokogiri::XML(URI.open(file))
 
   org_node = f.css("Return ReturnHeader Filer").first
-  org = Organization.first_or_create do |org|
-    org.ein = org_node.css("EIN").text
-    org.name = org_node.css("Name").text.strip
-  end
-  puts org.ein
-  puts org.name
+  org = Organization.find_or_create_by(
+    ein: org_node.css("EIN").text,
+    name: org_node.css("Name").text.strip.gsub(/\n */, " ").presence || org_node.css("BusinessName").text.strip.gsub(/\n */, " ").presence || org_node.css("BusinessNameLine1Txt").text.strip.gsub(/\n */, " ")
+  )
 
-  org.addresses << Address.first_or_create do |address|
-    address.line_1 = org_node.css("USAddress AddressLine1").text
-    address.city = org_node.css("USAddress City").text
-    address.state = org_node.css("USAddress State").text
-    address.zip = org_node.css("USAddress ZIPCode").text
-  end
+  org.addresses |= [Address.find_or_create_by(
+    line_1: org_node.css("USAddress AddressLine1").text,
+    city: org_node.css("USAddress City").text,
+    state: org_node.css("USAddress State").text,
+    zip: org_node.css("USAddress ZIPCode").text
+  )]
 
   f.css("Return ReturnData IRS990ScheduleI RecipientTable").each do |award_info|
-    org.awards << Award.create do |award|
-      award.amount = award_info.css("AmountOfCashGrant").text
-      award.purpose = award_info.css("PurposeOfGrant").text
-    end
+    organization = Organization.find_or_create_by(
+      name: award_info.css("RecipientNameBusiness BusinessNameLine1").text.presence || award_info.css("RecipientBusinessName BusinessNameLine1").text.presence || award_info.css("RecipientBusinessName BusinessNameLine1Txt").text,
+      ein: award_info.css("EINOfRecipient").text.presence || award_info.css("RecipientEIN").text,
+    )
+
+    organization.addresses |= [Address.find_or_create_by(
+      line_1: award_info.css("AddressUS AddressLine1").text.presence || award_info.css("USAddress AddressLine1").text.presence || award_info.css("USAddress AddressLine1Txt").text,
+      city: award_info.css("AddressUS City").text.presence || award_info.css("USAddress City").text.presence || award_info.css("USAddress CityNm").text,
+      state: award_info.css("AddressUS State").text.presence || award_info.css("USAddress State").text.presence || award_info.css("USAddress StateAbbreviationCd").text,
+      zip: award_info.css("AddressUS ZIPCode").text.presence|| award_info.css("USAddress ZIPCode").text.presence || award_info.css("USAddress ZIPCd").text
+    )]
+
+    organization.awards |= [Award.create(
+      amount: award_info.css("AmountOfCashGrant").text.presence || award_info.css("CashGrantAmt").text,
+      purpose: award_info.css("PurposeOfGrant").text.presence || award_info.css("PurposeOfGrantTxt").text
+    )]
   end
 end
 
