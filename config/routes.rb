@@ -3,5 +3,6 @@ Rails.application.routes.draw do
 
   namespace "api" do
     get "filings" => "filings#index"
+    get "recipients" => "recipients#index"
   end
 end
