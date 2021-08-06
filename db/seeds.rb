@@ -29,7 +29,7 @@ files.each do |file|
     name: org_node.css("Name").text.strip.gsub(/\n */, " ").presence || org_node.css("BusinessName").text.strip.gsub(/\n */, " ").presence || org_node.css("BusinessNameLine1Txt").text.strip.gsub(/\n */, " ")
   )
 
-  filing = Filing.create(organization: org)
+  filing = Filing.create(filer: org)
 
   org.addresses |= [Address.find_or_create_by(
     line_1: org_node.css("USAddress AddressLine1").text,
@@ -58,6 +58,24 @@ files.each do |file|
     )
 
     filing.awards |= [award]
+  end
+
+  f.css("Return/ReturnData/IRS990PF/SupplementaryInformationGrp/GrantOrContributionPdDurYrGrp").each do |award_info|
+    organization = Organization.find_or_create_by(
+      name: award_info.css("RecipientNameBusiness BusinessNameLine1").text.presence || award_info.css("RecipientBusinessName BusinessNameLine1").text.presence || award_info.css("RecipientBusinessName BusinessNameLine1Txt").text,
+    )
+    organization.addresses |= [Address.find_or_create_by(
+      line_1: award_info.css("RecipientUSAddress AddressLine1Txt").text,
+      city: award_info.css("RecipientUSAddress CityNm").text,
+      state: award_info.css("RecipientUSAddress StateAbbreviationCd").text ,
+      zip: award_info.css("RecipientUSAddress ZIPCd").text
+    )]
+
+    filing.awards |= [Award.create(
+      amount: award_info.css("Amt").text,
+      purpose: award_info.css("GrantOrContributionPurposeTxt").text,
+      recipient: organization
+    )]
   end
 end
 
